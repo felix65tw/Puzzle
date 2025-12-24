@@ -1,24 +1,21 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>4x4 數字推盤 (2048風格)</title>
+    <title>Number Puzzle (Wood)</title>
     <style>
         :root {
-            --bg-color: #faf8ef;
-            --grid-bg-color: #bbada0;
-            --tile-color: #cdc1b4; /* 預設/空白顏色 */
-            --tile-text-color: #776e65;
-            --tile-bg-active: #eee4da; /* 類似 2048 的 2 */
-            --tile-bg-high: #f2b179;   /* 類似 2048 的 8/16 */
+            --bg-color: #faf8ef;            /* Background: Off-white */
+            --grid-bg-color: #bbada0;       /* Grid container: Grayish Brown */
+            --tile-text-dark: #776e65;      /* Dark Text */
+            --tile-text-light: #f9f6f2;     /* Light Text */
             --gap-size: 10px;
-            --tile-size: 80px;
         }
 
         * {
             box-sizing: border-box;
-            user-select: none; /* 防止手機長按選取文字 */
+            user-select: none;
             -webkit-user-select: none;
         }
 
@@ -27,7 +24,7 @@
             padding: 0;
             font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
-            color: var(--tile-text-color);
+            color: var(--tile-text-dark);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -50,6 +47,7 @@
             margin: 0;
             font-weight: bold;
             color: #776e65;
+            letter-spacing: 2px;
         }
 
         .info-box {
@@ -63,7 +61,15 @@
             border-radius: 5px;
             color: white;
             text-align: center;
-            min-width: 80px;
+            min-width: 70px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .score-container:active {
+            transform: scale(0.95);
         }
 
         .score-title {
@@ -77,60 +83,52 @@
             font-weight: bold;
         }
 
-        /* 遊戲主容器 */
+        .settings-btn {
+            background: #8f7a66;
+            min-width: 50px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .game-container {
             position: relative;
             background-color: var(--grid-bg-color);
             border-radius: 6px;
             padding: var(--gap-size);
-            width: 90vw; /* 手機版寬度 */
-            height: 90vw; /* 手機版高度保持正方形 */
-            max-width: 500px; /* 電腦版最大寬度 */
+            width: 90vw;
+            height: 90vw;
+            max-width: 500px;
             max-height: 500px;
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-template-rows: repeat(4, 1fr);
             gap: var(--gap-size);
-            touch-action: none; /* 防止手機滑動頁面 */
+            touch-action: none;
         }
 
-        /* 方塊樣式 */
         .tile {
-            background-color: var(--tile-bg-active);
             border-radius: 3px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 30px;
             font-weight: bold;
-            color: var(--tile-text-color);
             cursor: pointer;
             transition: transform 0.1s ease-in-out, background-color 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+            /* Color is handled by JS */
         }
 
-        /* 空白格 */
+        .tile.selected {
+            border: 4px solid #8f7a66;
+            transform: scale(0.95);
+        }
+
         .tile.empty {
-            background-color: rgba(238, 228, 218, 0.35);
+            background-color: rgba(238, 228, 218, 0.35) !important;
             box-shadow: none;
             cursor: default;
         }
 
-        /* 給數字一點顏色變化，讓畫面更像2048 */
-        .tile[data-val="1"], .tile[data-val="2"], .tile[data-val="3"], .tile[data-val="4"] {
-            background-color: #eee4da; color: #776e65; 
-        }
-        .tile[data-val="5"], .tile[data-val="6"], .tile[data-val="7"], .tile[data-val="8"] {
-            background-color: #ede0c8; color: #776e65;
-        }
-        .tile[data-val="9"], .tile[data-val="10"], .tile[data-val="11"], .tile[data-val="12"] {
-            background-color: #f2b179; color: #f9f6f2;
-        }
-        .tile[data-val="13"], .tile[data-val="14"], .tile[data-val="15"] {
-            background-color: #f59563; color: #f9f6f2;
-        }
-
-        /* 按鈕區域 */
         .controls {
             margin-top: 20px;
             display: flex;
@@ -154,30 +152,34 @@
             transform: scale(0.98);
         }
 
-        /* 勝利覆蓋層 */
-        .overlay {
+        /* --- Overlays --- */
+        .overlay, .bible-overlay, .settings-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(238, 228, 218, 0.73);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
             border-radius: 6px;
             z-index: 10;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
-        .overlay.show {
+        .overlay.show, .bible-overlay.show, .settings-overlay.show {
             opacity: 1;
             pointer-events: auto;
         }
 
+        .overlay {
+            background: rgba(238, 228, 218, 0.85);
+            padding-bottom: 40%;
+            z-index: 15;
+        }
         .overlay h2 {
             font-size: 60px;
             font-weight: bold;
@@ -185,108 +187,435 @@
             color: #776e65;
         }
 
-        /* 針對小螢幕手機調整字體大小 */
+        .bible-overlay {
+            background: rgba(250, 248, 239, 0.98);
+            z-index: 20;
+            padding: 20px;
+            color: #5d554c;
+        }
+        .bible-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #8b633e;
+        }
+        .bible-text {
+            font-size: 16px;
+            line-height: 1.8;
+            text-align: left;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+            max-width: 90%;
+            font-family: "KaiTi", "BiauKai", serif;
+            font-weight: bold;
+        }
+
+        .settings-overlay {
+            background: rgba(250, 248, 239, 0.98);
+            z-index: 25;
+        }
+        .settings-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 200px;
+        }
+        .settings-menu button {
+            width: 100%;
+            padding: 15px;
+            font-size: 20px;
+        }
+        .grid-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 260px;
+        }
+
         @media (max-width: 400px) {
-            .tile { font-size: 24px; }
-            h1 { font-size: 32px; }
+            h1 { font-size: 28px; }
+            .bible-text { font-size: 14px; line-height: 1.5; }
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>15-Puzzle</h1>
+        <h1>Puzzle</h1>
         <div class="info-box">
             <div class="score-container">
                 <div class="score-title">Moves</div>
                 <div class="score-value" id="move-count">0</div>
             </div>
-            <div class="score-container">
+            <div class="score-container" id="time-box">
                 <div class="score-title">Time</div>
                 <div class="score-value" id="time-count">0</div>
+            </div>
+            <div class="score-container settings-btn" id="settings-btn" onclick="openSettings()">
+                ⚙️
             </div>
         </div>
     </header>
 
     <div class="game-container" id="grid">
-        <!-- 方塊將由 JS 生成 -->
         <div class="overlay" id="overlay">
             <h2>You Win!</h2>
             <button onclick="initGame()">Play Again</button>
         </div>
+
+        <div class="bible-overlay" id="bible-overlay">
+            <div class="bible-title">詩篇 23 篇</div>
+            <div class="bible-text">
+耶和華是我的牧者，我必不致缺乏。
+他使我躺臥在青草地上，領我在可安歇的水邊。
+他使我的靈魂甦醒，為自己的名引導我走義路。
+我雖然行過死蔭的幽谷，也不怕遭害，
+因為你與我同在；你的杖，你的竿，都安慰我。
+在你敵人面前，你為我擺設筵席；
+你用油膏了我的頭，使我的福杯滿溢。
+我一生一世必有恩惠慈愛隨著我；
+我且要住在耶和華的殿中，直到永遠。
+            </div>
+            <button onclick="closeBible()">Close</button>
+        </div>
+
+        <div class="settings-overlay" id="settings-overlay">
+            <div id="settings-main" class="settings-menu">
+                <button onclick="showNewGameMenu()">New Game</button>
+                <button onclick="togglePreview()" id="preview-btn">Preview: On</button>
+                <button onclick="toggleSound()" id="sound-btn">Sound: On</button>
+                <button onclick="closeSettings()">Back</button>
+            </div>
+            <div id="settings-size" class="settings-menu" style="display: none;">
+                <div class="grid-selector">
+                    <button onclick="changeSize(3)">3 x 3</button>
+                    <button onclick="changeSize(4)">4 x 4</button>
+                    <button onclick="changeSize(5)">5 x 5</button>
+                    <button onclick="changeSize(6)">6 x 6</button>
+                    <button onclick="changeSize(7)">7 x 7</button>
+                    <button onclick="changeSize(8)">8 x 8</button>
+                </div>
+                <button onclick="showMainMenu()" style="margin-top: 10px;">Back</button>
+            </div>
+        </div>
     </div>
 
     <div class="controls">
-        <button onclick="initGame()">New Game</button>
+        <button onclick="initGame()">Restart Level</button>
     </div>
 
     <script>
         const gridElement = document.getElementById('grid');
         const moveDisplay = document.getElementById('move-count');
         const timeDisplay = document.getElementById('time-count');
+        const timeBox = document.getElementById('time-box');
         const overlay = document.getElementById('overlay');
+        const bibleOverlay = document.getElementById('bible-overlay');
+        const settingsOverlay = document.getElementById('settings-overlay');
+        const settingsMain = document.getElementById('settings-main');
+        const settingsSize = document.getElementById('settings-size');
+        const soundBtn = document.getElementById('sound-btn');
+        const previewBtn = document.getElementById('preview-btn');
 
-        let tiles = []; // 儲存目前的數字狀態 (0 代表空白)
-        let emptyIndex = 15; // 空白格的位置 (0-15)
+        let gridSize = 4;
+        let tiles = [];
+        let emptyIndex = 15;
         let moves = 0;
         let timer = 0;
         let timerInterval = null;
         let isGameActive = false;
+        
+        // Settings
+        let isSoundOn = true;
+        let isPreviewEnabled = true; // New: Preview setting
+        let previewTimeout = null;   // To manage the delay
 
-        // 初始化遊戲
-        function initGame() {
-            // 停止舊計時器
-            if (timerInterval) clearInterval(timerInterval);
+        // Wood tone palette: Lightest to Darkest (8 levels)
+        const woodColors = [
+            { bg: "#eee4da", text: "#776e65" }, // 1. Cream (Lightest)
+            { bg: "#ede0c8", text: "#776e65" }, // 2. Beige
+            { bg: "#dcb386", text: "#776e65" }, // 3. Light Oak
+            { bg: "#c59b6d", text: "#f9f6f2" }, // 4. Caramel
+            { bg: "#a87f56", text: "#f9f6f2" }, // 5. Amber
+            { bg: "#8b633e", text: "#f9f6f2" }, // 6. Walnut
+            { bg: "#6e4727", text: "#f9f6f2" }, // 7. Dark Coffee
+            { bg: "#52331b", text: "#f9f6f2" }  // 8. Ebony (Darkest)
+        ];
+
+        const SoundManager = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playMove: function() {
+                if (!isSoundOn) return;
+                if (!this.ctx) this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            },
+            playWin: function() {
+                if (!isSoundOn) return;
+                if (!this.ctx) this.init();
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                const now = this.ctx.currentTime;
+                notes.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    const startTime = now + (i * 0.1);
+                    gain.gain.setValueAtTime(0, startTime);
+                    gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.8);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 1);
+                });
+            }
+        };
+
+        let timeClickCount = 0;
+        let clickResetTimer = null;
+        let cheatSequence = [];
+        let isSwapMode = false;
+        let firstSwapIndex = null;
+
+        function initGame(newSize = null) {
+            SoundManager.init();
             
-            // 重置數據
+            if (newSize) {
+                gridSize = newSize;
+            }
+
+            // Cleanup previous states
+            if (timerInterval) clearInterval(timerInterval);
+            if (previewTimeout) clearTimeout(previewTimeout);
+            
             moves = 0;
             timer = 0;
-            isGameActive = true;
+            isGameActive = false; // Disable interaction initially
             moveDisplay.innerText = moves;
             timeDisplay.innerText = timer;
+            
             overlay.classList.remove('show');
+            bibleOverlay.classList.remove('show');
+            settingsOverlay.classList.remove('show');
 
-            // 建立已完成的陣列 [1, 2, ..., 15, 0]
-            tiles = Array.from({length: 16}, (_, i) => (i + 1) % 16);
-            emptyIndex = 15;
+            cheatSequence = [];
+            isSwapMode = false;
+            firstSwapIndex = null;
+            timeClickCount = 0;
 
-            // 洗牌（確保有解）：從完成狀態開始，隨機移動空白格
-            shuffleTiles(300); 
+            const totalTiles = gridSize * gridSize;
+            
+            // 1. Create Solved State First
+            tiles = Array.from({length: totalTiles}, (_, i) => (i + 1) % totalTiles);
+            emptyIndex = totalTiles - 1;
 
+            gridElement.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            gridElement.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+
+            // Render solved state immediately
             render();
-            startTimer();
+
+            // 2. Decide flow based on Preview setting
+            if (isPreviewEnabled) {
+                // Wait 2 seconds, then shuffle and start
+                previewTimeout = setTimeout(() => {
+                    startGameLogic();
+                }, 2000);
+            } else {
+                // Start immediately
+                startGameLogic();
+            }
         }
 
-        // 渲染畫面
+        // Logic to shuffle and enable game
+        function startGameLogic() {
+            shuffleTiles(gridSize * 50); 
+            render();
+            startTimer();
+            isGameActive = true; // Enable interaction
+        }
+
+        function openSettings() {
+            showMainMenu();
+            settingsOverlay.classList.add('show');
+        }
+
+        function closeSettings() {
+            settingsOverlay.classList.remove('show');
+        }
+
+        function showMainMenu() {
+            settingsMain.style.display = 'flex';
+            settingsSize.style.display = 'none';
+        }
+
+        function showNewGameMenu() {
+            settingsMain.style.display = 'none';
+            settingsSize.style.display = 'grid'; 
+        }
+
+        function changeSize(size) {
+            initGame(size);
+        }
+
+        function toggleSound() {
+            isSoundOn = !isSoundOn;
+            soundBtn.innerText = isSoundOn ? "Sound: On" : "Sound: Off";
+        }
+
+        function togglePreview() {
+            isPreviewEnabled = !isPreviewEnabled;
+            previewBtn.innerText = isPreviewEnabled ? "Preview: On" : "Preview: Off";
+        }
+
+        timeBox.addEventListener('click', () => {
+            timeClickCount++;
+            clearTimeout(clickResetTimer);
+            clickResetTimer = setTimeout(() => {
+                timeClickCount = 0;
+            }, 800);
+
+            if (timeClickCount >= 3) {
+                forceWin();
+                timeClickCount = 0;
+            }
+        });
+
+        function forceWin() {
+            isGameActive = false;
+            clearInterval(timerInterval);
+            if (previewTimeout) clearTimeout(previewTimeout);
+            overlay.classList.add('show');
+            SoundManager.playWin();
+        }
+
+        function closeBible() {
+            bibleOverlay.classList.remove('show');
+        }
+
         function render() {
-            // 清空目前的 HTML
-            const oldTiles = gridElement.querySelectorAll('.tile:not(.overlay)');
+            const oldTiles = gridElement.querySelectorAll('.tile');
             oldTiles.forEach(t => t.remove());
+
+            const fontSize = Math.max(12, Math.floor(120 / gridSize)); 
 
             tiles.forEach((num, index) => {
                 const tile = document.createElement('div');
                 tile.classList.add('tile');
+                tile.style.fontSize = fontSize + 'px';
                 
+                if (isSwapMode && index === firstSwapIndex) {
+                    tile.classList.add('selected');
+                }
+
                 if (num === 0) {
                     tile.classList.add('empty');
                     tile.innerText = "";
                 } else {
                     tile.innerText = num;
                     tile.setAttribute('data-val', num);
-                    // 點擊事件
-                    tile.addEventListener('click', () => handleMove(index));
-                    tile.addEventListener('touchstart', (e) => {
-                        e.preventDefault(); // 防止雙擊縮放
-                        handleMove(index);
-                    }, {passive: false});
+                    
+                    // --- Dynamic Coloring Logic ---
+                    const groupIndex = Math.floor((num - 1) / gridSize);
+                    const colorIndex = groupIndex % woodColors.length;
+                    const style = woodColors[colorIndex];
+                    
+                    tile.style.backgroundColor = style.bg;
+                    tile.style.color = style.text;
+
+                    const clickHandler = (e) => {
+                        e.preventDefault(); 
+                        handleTileInteract(index, num);
+                    };
+
+                    tile.addEventListener('click', clickHandler);
+                    tile.addEventListener('touchstart', clickHandler, {passive: false});
                 }
                 
-                // 為了避免遮住 overlay，插入在 overlay 之前
                 gridElement.insertBefore(tile, overlay);
             });
         }
 
-        // 洗牌邏輯：模擬隨機移動
+        function handleTileInteract(index, num) {
+            if (!isGameActive) return;
+
+            if (isSwapMode) {
+                if (firstSwapIndex === null) {
+                    firstSwapIndex = index;
+                    render();
+                } else {
+                    swap(firstSwapIndex, index);
+                    if (tiles[firstSwapIndex] === 0) emptyIndex = firstSwapIndex;
+                    if (tiles[index] === 0) emptyIndex = index;
+
+                    isSwapMode = false;
+                    firstSwapIndex = null;
+                    cheatSequence = [];
+                    render();
+                    checkWin();
+                }
+                return;
+            }
+
+            if (num !== 0) {
+                cheatSequence.push(num);
+                if (cheatSequence.length > 8) cheatSequence.shift();
+                
+                const seqStr = cheatSequence.join('');
+
+                if (seqStr === '85893861') {
+                    bibleOverlay.classList.add('show');
+                    cheatSequence = [];
+                }
+
+                if (seqStr.endsWith('1588')) {
+                    isSwapMode = true;
+                    alert("God Mode Activated!\nClick the first tile, then click the second tile to swap.");
+                    return;
+                }
+            }
+
+            handleMove(index);
+        }
+
+        function handleMove(index) {
+            const row = Math.floor(index / gridSize);
+            const col = index % gridSize;
+            const emptyRow = Math.floor(emptyIndex / gridSize);
+            const emptyCol = emptyIndex % gridSize;
+
+            const isAdjacent = (Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1;
+
+            if (isAdjacent) {
+                swap(index, emptyIndex);
+                emptyIndex = index;
+                moves++;
+                moveDisplay.innerText = moves;
+                SoundManager.playMove();
+                render();
+                checkWin();
+            }
+        }
+
+        function swap(i, j) {
+            [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+        }
+
         function shuffleTiles(steps) {
             for (let i = 0; i < steps; i++) {
                 const neighbors = getNeighbors(emptyIndex);
@@ -296,63 +625,30 @@
             }
         }
 
-        // 取得某位置周圍的鄰居索引
         function getNeighbors(index) {
             const neighbors = [];
-            const row = Math.floor(index / 4);
-            const col = index % 4;
-
-            if (row > 0) neighbors.push(index - 4); // 上
-            if (row < 3) neighbors.push(index + 4); // 下
-            if (col > 0) neighbors.push(index - 1); // 左
-            if (col < 3) neighbors.push(index + 1); // 右
-
+            const row = Math.floor(index / gridSize);
+            const col = index % gridSize;
+            
+            if (row > 0) neighbors.push(index - gridSize);
+            if (row < gridSize - 1) neighbors.push(index + gridSize);
+            if (col > 0) neighbors.push(index - 1);
+            if (col < gridSize - 1) neighbors.push(index + 1);
+            
             return neighbors;
         }
 
-        // 處理玩家點擊移動
-        function handleMove(index) {
-            if (!isGameActive) return;
-
-            // 檢查是否相鄰
-            const row = Math.floor(index / 4);
-            const col = index % 4;
-            const emptyRow = Math.floor(emptyIndex / 4);
-            const emptyCol = emptyIndex % 4;
-
-            const isAdjacent = (Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1;
-
-            if (isAdjacent) {
-                swap(index, emptyIndex);
-                emptyIndex = index;
-                moves++;
-                moveDisplay.innerText = moves;
-                render();
-                checkWin();
-            }
-        }
-
-        // 交換陣列中的兩個元素
-        function swap(i, j) {
-            [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
-        }
-
-        // 檢查是否勝利
         function checkWin() {
-            // 檢查是否為 1, 2, 3... 15, 0
             const isWin = tiles.every((val, index) => {
-                if (index === 15) return val === 0;
+                if (index === gridSize * gridSize - 1) return val === 0;
                 return val === index + 1;
             });
 
             if (isWin) {
-                isGameActive = false;
-                clearInterval(timerInterval);
-                overlay.classList.add('show');
+                forceWin();
             }
         }
 
-        // 計時器
         function startTimer() {
             timerInterval = setInterval(() => {
                 timer++;
@@ -360,7 +656,6 @@
             }, 1000);
         }
 
-        // 啟動遊戲
         initGame();
 
     </script>
