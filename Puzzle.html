@@ -66,10 +66,12 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.2);
         }
         
         .score-container:active {
-            transform: scale(0.95);
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.2);
         }
 
         .score-title {
@@ -104,8 +106,10 @@
             display: grid;
             gap: var(--gap-size);
             touch-action: none;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1); 
         }
 
+        /* --- Tile Styles --- */
         .tile {
             border-radius: 3px;
             display: flex;
@@ -113,8 +117,21 @@
             align-items: center;
             font-weight: bold;
             cursor: pointer;
-            transition: transform 0.1s ease-in-out, background-color 0.2s;
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+            box-shadow: 
+                inset 0 1px 0 rgba(255,255,255,0.3),
+                inset 0 -1px 0 rgba(0,0,0,0.1),
+                0 4px 0 rgba(0,0,0,0.15),
+                0 5px 5px rgba(0,0,0,0.1);
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s;
+        }
+
+        .tile:active {
+            transform: translateY(4px);
+            box-shadow: 
+                inset 0 1px 0 rgba(255,255,255,0.3),
+                inset 0 -1px 0 rgba(0,0,0,0.1),
+                0 0 0 rgba(0,0,0,0.15),
+                0 1px 2px rgba(0,0,0,0.1);
         }
 
         .tile.selected {
@@ -124,7 +141,7 @@
 
         .tile.empty {
             background-color: rgba(238, 228, 218, 0.35) !important;
-            box-shadow: none;
+            box-shadow: none !important;
             cursor: default;
         }
 
@@ -144,23 +161,28 @@
             font-weight: bold;
             cursor: pointer;
             outline: none;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, transform 0.1s, box-shadow 0.1s;
+            box-shadow: 0 4px 0 #796654; 
         }
 
         button:active {
             background-color: #796654;
-            transform: scale(0.98);
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #796654;
         }
 
-        /* 禁用按鈕樣式 */
         button.disabled {
             opacity: 0.5;
             pointer-events: none;
             cursor: default;
+            box-shadow: none;
+            transform: translateY(2px);
         }
 
-        /* --- Overlays (通用設定) --- */
-        .overlay, .bible-overlay, .settings-overlay {
+        /* --- Overlays --- */
+        
+        /* 1. 勝利畫面 (保留在棋盤內的絕對定位) */
+        .overlay {
             position: absolute;
             top: 0;
             left: 0;
@@ -175,18 +197,12 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-        }
-
-        .overlay.show, .bible-overlay.show, .settings-overlay.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        /* 勝利畫面 (保留半透明，讓玩家看到最後的棋盤) */
-        .overlay {
             background: rgba(238, 228, 218, 0.85);
             padding-bottom: 40%;
-            z-index: 15;
+        }
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
         }
         .overlay h2 {
             font-size: 60px;
@@ -195,40 +211,58 @@
             color: #776e65;
         }
 
-        /* 聖經畫面 (完全不透明背景，遮蓋後方) */
-        .bible-overlay {
-            background-color: var(--bg-color); /* 使用底色 */
-            z-index: 20;
+        /* 2. 聖經畫面 & 設定畫面 (改為全螢幕固定定位，蓋住整個網頁) */
+        .bible-overlay, .settings-overlay {
+            position: fixed; /* 關鍵修改：固定在視窗，不隨棋盤大小限制 */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000; /* 最高層級 */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bg-color); /* 完全不透明背景 */
             padding: 20px;
-            color: #5d554c;
         }
+
+        .bible-overlay.show, .settings-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
         .bible-title {
             font-size: 28px;
             font-weight: bold;
             margin-bottom: 20px;
             color: #8b633e;
         }
+        
         .bible-text {
             font-size: 16px;
             line-height: 1.8;
             text-align: left;
             white-space: pre-wrap;
             margin-bottom: 20px;
-            max-width: 90%;
+            width: 100%;
+            max-width: 500px;
+            /* 增加滾動功能，防止手機版文字被切掉 */
+            max-height: 60vh; 
+            overflow-y: auto;
             font-family: "KaiTi", "BiauKai", serif;
             font-weight: bold;
         }
 
-        /* 設定畫面 (完全不透明背景，遮蓋後方) */
-        .settings-overlay {
-            background-color: var(--bg-color); /* 使用底色 */
-            z-index: 25;
-        }
         .settings-menu {
             display: flex;
             flex-direction: column;
             gap: 15px;
-            width: 200px;
+            width: 100%;
+            max-width: 300px;
         }
         .settings-menu button {
             width: 100%;
@@ -238,13 +272,14 @@
         .grid-selector {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            width: 260px;
+            gap: 15px;
+            width: 100%;
+            max-width: 300px;
         }
 
         @media (max-width: 400px) {
             h1 { font-size: 28px; }
-            .bible-text { font-size: 14px; line-height: 1.5; }
+            .bible-text { font-size: 15px; line-height: 1.6; }
         }
     </style>
 </head>
@@ -272,10 +307,13 @@
             <h2>You Win!</h2>
             <button onclick="initGame()">Play Again</button>
         </div>
+    </div>
 
-        <div class="bible-overlay" id="bible-overlay">
-            <div class="bible-title">詩篇 23 篇</div>
-            <div class="bible-text">
+    <!-- 將全螢幕 Overlay 移出 game-container，結構更清晰，但 CSS position:fixed 已確保覆蓋 -->
+    
+    <div class="bible-overlay" id="bible-overlay">
+        <div class="bible-title">詩篇 23 篇</div>
+        <div class="bible-text">
 耶和華是我的牧者，我必不致缺乏。
 他使我躺臥在青草地上，領我在可安歇的水邊。
 他使我的靈魂甦醒，為自己的名引導我走義路。
@@ -285,28 +323,27 @@
 你用油膏了我的頭，使我的福杯滿溢。
 我一生一世必有恩惠慈愛隨著我；
 我且要住在耶和華的殿中，直到永遠。
-            </div>
-            <button onclick="closeBible()">Close</button>
         </div>
+        <button onclick="closeBible()">Close</button>
+    </div>
 
-        <div class="settings-overlay" id="settings-overlay">
-            <div id="settings-main" class="settings-menu">
-                <button onclick="showNewGameMenu()">New Game</button>
-                <button onclick="togglePreview()" id="preview-btn">Preview: On</button>
-                <button onclick="toggleSound()" id="sound-btn">Sound: On</button>
-                <button onclick="closeSettings()">Back</button>
+    <div class="settings-overlay" id="settings-overlay">
+        <div id="settings-main" class="settings-menu">
+            <button onclick="showNewGameMenu()">New Game</button>
+            <button onclick="togglePreview()" id="preview-btn">Preview: On</button>
+            <button onclick="toggleSound()" id="sound-btn">Sound: On</button>
+            <button onclick="closeSettings()">Back</button>
+        </div>
+        <div id="settings-size" class="settings-menu" style="display: none;">
+            <div class="grid-selector">
+                <button onclick="changeSize(3)">3 x 3</button>
+                <button onclick="changeSize(4)">4 x 4</button>
+                <button onclick="changeSize(5)">5 x 5</button>
+                <button onclick="changeSize(6)">6 x 6</button>
+                <button onclick="changeSize(7)">7 x 7</button>
+                <button onclick="changeSize(8)">8 x 8</button>
             </div>
-            <div id="settings-size" class="settings-menu" style="display: none;">
-                <div class="grid-selector">
-                    <button onclick="changeSize(3)">3 x 3</button>
-                    <button onclick="changeSize(4)">4 x 4</button>
-                    <button onclick="changeSize(5)">5 x 5</button>
-                    <button onclick="changeSize(6)">6 x 6</button>
-                    <button onclick="changeSize(7)">7 x 7</button>
-                    <button onclick="changeSize(8)">8 x 8</button>
-                </div>
-                <button onclick="showMainMenu()" style="margin-top: 10px;">Back</button>
-            </div>
+            <button onclick="showMainMenu()" style="margin-top: 15px;">Back</button>
         </div>
     </div>
 
@@ -343,14 +380,14 @@
 
         // Wood tone palette
         const woodColors = [
-            { bg: "#eee4da", text: "#776e65" }, // 1. Cream
-            { bg: "#ede0c8", text: "#776e65" }, // 2. Beige
-            { bg: "#dcb386", text: "#776e65" }, // 3. Light Oak
-            { bg: "#c59b6d", text: "#f9f6f2" }, // 4. Caramel
-            { bg: "#a87f56", text: "#f9f6f2" }, // 5. Amber
-            { bg: "#8b633e", text: "#f9f6f2" }, // 6. Walnut
-            { bg: "#6e4727", text: "#f9f6f2" }, // 7. Dark Coffee
-            { bg: "#52331b", text: "#f9f6f2" }  // 8. Ebony
+            { bg: "#eee4da", text: "#776e65" }, // 1
+            { bg: "#ede0c8", text: "#776e65" }, // 2
+            { bg: "#dcb386", text: "#776e65" }, // 3
+            { bg: "#c59b6d", text: "#f9f6f2" }, // 4
+            { bg: "#a87f56", text: "#f9f6f2" }, // 5
+            { bg: "#8b633e", text: "#f9f6f2" }, // 6
+            { bg: "#6e4727", text: "#f9f6f2" }, // 7
+            { bg: "#52331b", text: "#f9f6f2" }  // 8
         ];
 
         const SoundManager = {
