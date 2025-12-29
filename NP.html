@@ -43,7 +43,7 @@
         }
 
         h1 {
-            font-size: 40px;
+            font-size: 32px;
             margin: 0;
             font-weight: bold;
             color: #776e65;
@@ -276,6 +276,51 @@
             max-width: 300px;
         }
 
+        /* 預覽倒計時樣式 - 加大數字 */
+        .preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            z-index: 5;
+            opacity: 0;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        .preview-overlay.show {
+            opacity: 1;
+        }
+        
+        .countdown-number {
+            font-size: 220px;  /* 從 150px 加大到 220px */
+            font-weight: 900;  /* 增加字重 */
+            color: rgba(255, 255, 255, 0.85);  /* 增加透明度 */
+            text-shadow: 
+                0 6px 20px rgba(0, 0, 0, 0.4),
+                0 0 30px rgba(255, 215, 0, 0.3);  /* 添加金色光暈 */
+            opacity: 0;
+            transform: scale(0.2);
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: absolute;
+        }
+        
+        .countdown-number.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .countdown-number.fading {
+            opacity: 0;
+            transform: scale(1.8);  /* 放大更多 */
+        }
+
         /* 手機版專用樣式 - 整個頁面內容上移四分之一 */
         @media (max-width: 768px) {
             body {
@@ -291,7 +336,7 @@
             }
             
             h1 {
-                font-size: 32px;
+                font-size: 24px;
             }
             
             .game-container {
@@ -313,6 +358,11 @@
             .score-value {
                 font-size: 18px;
             }
+            
+            /* 手機版倒計時調整 - 加大數字 */
+            .countdown-number {
+                font-size: 160px;  /* 從 100px 加大到 160px */
+            }
         }
 
         /* 小屏幕手機調整 */
@@ -322,7 +372,7 @@
             }
             
             h1 { 
-                font-size: 28px;
+                font-size: 20px;
                 margin-bottom: 2px;
             }
             
@@ -359,13 +409,19 @@
                 padding: 8px 16px;
                 font-size: 16px;
             }
+            
+            /* 小屏幕倒計時調整 - 加大數字 */
+            .countdown-number {
+                font-size: 130px;  /* 從 80px 加大到 130px */
+            }
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Puzzle</h1>
+        <!-- 修改標題為 Number Puzzle -->
+        <h1>Number Puzzle</h1>
         <div class="info-box">
             <div class="score-container">
                 <div class="score-title">Moves</div>
@@ -382,6 +438,13 @@
     </header>
 
     <div class="game-container" id="grid">
+        <!-- 預覽倒計時疊層 -->
+        <div class="preview-overlay" id="preview-overlay">
+            <div class="countdown-number" id="countdown-2">2</div>
+            <div class="countdown-number" id="countdown-1">1</div>
+            <div class="countdown-number" id="countdown-go">GO!</div>
+        </div>
+        
         <div class="overlay" id="overlay">
             <h2>You Win!</h2>
             <button onclick="initGame()">Play Again</button>
@@ -441,6 +504,10 @@
         const soundBtn = document.getElementById('sound-btn');
         const previewBtn = document.getElementById('preview-btn');
         const restartBtn = document.getElementById('restart-btn');
+        const previewOverlay = document.getElementById('preview-overlay');
+        const countdown2 = document.getElementById('countdown-2');
+        const countdown1 = document.getElementById('countdown-1');
+        const countdownGo = document.getElementById('countdown-go');
 
         let gridSize = 4;
         let tiles = [];
@@ -518,6 +585,28 @@
                     osc.start(startTime);
                     osc.stop(startTime + 1);
                 });
+            },
+            playCountdown: function(num) {
+                if (!isSoundOn) return;
+                if (!this.ctx) this.init();
+                
+                this.checkResume();
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                
+                // 不同數字不同音高
+                const frequencies = {2: 440, 1: 554.37, go: 659.25};
+                osc.frequency.value = frequencies[num] || 440;
+                
+                gain.gain.setValueAtTime(0, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.4, this.ctx.currentTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.5);
             }
         };
 
@@ -537,6 +626,12 @@
 
             if (timerInterval) clearInterval(timerInterval);
             if (previewTimeout) clearTimeout(previewTimeout);
+            
+            // 重置倒計時顯示
+            countdown2.classList.remove('active', 'fading');
+            countdown1.classList.remove('active', 'fading');
+            countdownGo.classList.remove('active', 'fading');
+            previewOverlay.classList.remove('show');
             
             moves = 0;
             timer = 0;
@@ -566,12 +661,56 @@
             render();
 
             if (isPreviewEnabled) {
-                previewTimeout = setTimeout(() => {
-                    startGameLogic();
-                }, 2000);
+                startPreviewCountdown();
             } else {
                 startGameLogic();
             }
+        }
+
+        function startPreviewCountdown() {
+            // 顯示預覽疊層
+            previewOverlay.classList.add('show');
+            
+            // 先確保所有數字隱藏
+            countdown2.classList.remove('active', 'fading');
+            countdown1.classList.remove('active', 'fading');
+            countdownGo.classList.remove('active', 'fading');
+            
+            // 顯示數字2，播放音效
+            setTimeout(() => {
+                countdown2.classList.add('active');
+                SoundManager.playCountdown(2);
+                
+                // 數字2消失，顯示數字1
+                setTimeout(() => {
+                    countdown2.classList.add('fading');
+                    setTimeout(() => {
+                        countdown2.classList.remove('active', 'fading');
+                        countdown1.classList.add('active');
+                        SoundManager.playCountdown(1);
+                        
+                        // 數字1消失，顯示GO!
+                        setTimeout(() => {
+                            countdown1.classList.add('fading');
+                            setTimeout(() => {
+                                countdown1.classList.remove('active', 'fading');
+                                countdownGo.classList.add('active');
+                                SoundManager.playCountdown('go');
+                                
+                                // GO!消失，開始遊戲
+                                setTimeout(() => {
+                                    countdownGo.classList.add('fading');
+                                    setTimeout(() => {
+                                        countdownGo.classList.remove('active', 'fading');
+                                        previewOverlay.classList.remove('show');
+                                        startGameLogic();
+                                    }, 500);
+                                }, 500);
+                            }, 300);
+                        }, 700);
+                    }, 300);
+                }, 700);
+            }, 100);
         }
 
         function startGameLogic() {
@@ -681,7 +820,7 @@
                     tile.addEventListener('touchstart', clickHandler, {passive: false});
                 }
                 
-                gridElement.insertBefore(tile, overlay);
+                gridElement.insertBefore(tile, previewOverlay);
             });
         }
 
